@@ -1,0 +1,13 @@
+# Python
+.venv
+__pycache__/
+
+# vscode
+.vscode
+
+# proj
+strategy/
+utils/plot.py
+backtest.ipynb
+scan.ipynb
+requirements.txt

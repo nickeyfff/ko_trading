@@ -1,0 +1,7 @@
+duckdb
+ipykernel
+colorama
+numpy
+pandas
+requests
+xlrd
