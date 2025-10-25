@@ -14,7 +14,7 @@ logger = get_logger(__name__)
 class ShenWan(DuckDBBase):
     def __init__(self):
         super().__init__()
-        self.table_name = "shenwan"
+        self.table_name = "raw_shenwan_industry"
         self._create_shenwan_table()
 
     def _create_shenwan_table(self):

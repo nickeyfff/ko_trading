@@ -13,7 +13,7 @@ logger = get_logger(__name__)
 class Index(DuckDBBase):
     def __init__(self):
         super().__init__()
-        self.table_name = "index"
+        self.table_name = "raw_index_constituent"
         self._create_index_table()
 
     def _create_index_table(self):

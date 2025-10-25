@@ -8,7 +8,7 @@ from database.base import DuckDBBase
 class Stock(DuckDBBase):
     def __init__(self):
         super().__init__()
-        self.table_name = "stocks"
+        self.table_name = "v_qfq_stocks"
 
     def query(self, symbol):
         query = f"""
