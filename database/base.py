@@ -9,15 +9,16 @@ db_path = os.environ.get("DBPATH", "")
 
 
 class DuckDBBase:
+    table_name: str
+
     def __init__(self):
         self.db_name = db_path
         self.conn = duckdb.connect(self.db_name)
-        # Optional: Lock for connection initialization if needed
         self._lock = Lock()
 
     def _execute(self, query: str, params: tuple = ()) -> Any:
         """Execute SQL query with thread-local cursor"""
-        cursor = self.conn.cursor()  # Create a new cursor for each execution
+        cursor = self.conn.cursor()
         cursor.execute(query, params)
         return cursor
 
@@ -30,31 +31,20 @@ class DuckDBBase:
         with self._lock:  # Ensure table creation is thread-safe
             self._execute(query)
 
-    def insert(self, table_name: str, data: Dict[str, Any]) -> int:
-        """Insert a single record"""
-        columns = ", ".join(data.keys())
-        placeholders = ", ".join("?" * len(data))
-        query = f"INSERT INTO {table_name} ({columns}) VALUES ({placeholders})"
-        cursor = self._execute(query, tuple(data.values()))
-        return cursor.lastrowid
-
-    def insert_dataframe(self, table_name: str, df: pd.DataFrame) -> int:
-        """Insert DataFrame data in bulk"""
+    def insert_dataframe(self, table_name: str, df: pd.DataFrame):
         if df.empty:
-            return 0
+            return
 
-        cursor = self.conn.cursor()
-        columns = ", ".join(df.columns)
-        placeholders = ", ".join("?" * len(df.columns))
-        query = f"INSERT INTO {table_name} ({columns}) VALUES ({placeholders})"
-        try:
+        temp_view_name = f"temp_{table_name}_view"
+        self.conn.register(temp_view_name, df)
+
+        query = f"INSERT INTO {table_name} SELECT * FROM {temp_view_name}"
+
+        with self._lock:
+            self.conn.execute(query)
             self.conn.commit()
-            cursor.executemany(query, df.values.tolist())
-            return len(df)
-        except Exception as e:
-            self.conn.rollback()
-            print(f"Error inserting data: {e}")
-            raise
+        self.conn.unregister(temp_view_name)
+        return len(df)
 
     def select(
         self,
@@ -63,7 +53,6 @@ class DuckDBBase:
         fields: Optional[List[str]] = None,
     ) -> pd.DataFrame:
         """Query records and return Pandas DataFrame in a thread-safe manner"""
-        # Create a thread-local cursor for this select operation
         cursor = self.conn.cursor()
         fields_str = "*" if not fields else ", ".join(fields)
         query = f"SELECT {fields_str} FROM {table_name}"
@@ -74,20 +63,8 @@ class DuckDBBase:
             query += f" WHERE {where_clause}"
             params = tuple(conditions.values())
 
-        # Execute query using thread-local cursor and fetch results as DataFrame
         df = cursor.execute(query, params).fetch_df()
         return df
-
-    def update(
-        self, table_name: str, data: Dict[str, Any], conditions: Dict[str, Any]
-    ) -> int:
-        """Update records"""
-        set_clause = ", ".join(f"{k}=?" for k in data.keys())
-        where_clause = " AND ".join(f"{k}=?" for k in conditions.keys())
-        query = f"UPDATE {table_name} SET {set_clause} WHERE {where_clause}"
-        params = tuple(data.values()) + tuple(conditions.values())
-        cursor = self._execute(query, params)
-        return cursor.rowcount
 
     def delete(self, table_name: str, conditions: Dict[str, Any]) -> int:
         """Delete records"""
@@ -101,3 +78,31 @@ class DuckDBBase:
         query = f"DELETE FROM {table_name}"
         cursor = self._execute(query)
         return cursor.rowcount
+
+    def query_df(self, sql):
+        with self.conn.cursor() as cursor:
+            df = cursor.execute(sql).fetch_df()
+        return df
+
+    def get_latest_date(self) -> str | None:
+        try:
+            df = self.query_df(f"SELECT MAX(date) AS latest FROM {self.table_name}")
+        except Exception:
+            return None
+
+        if df.empty:
+            return None
+
+        val = df.iloc[0, 0]
+        if pd.isna(val):
+            return None
+
+        # 正常情况：返回字符串格式日期
+        return (
+            pd.to_datetime(val).strftime("%Y-%m-%d")
+            if not isinstance(val, str)
+            else val
+        )
+
+
+db = DuckDBBase()

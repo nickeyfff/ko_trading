@@ -3,8 +3,8 @@ import tempfile
 
 import pandas as pd
 
+from common import download_file, get_logger
 from database.base import DuckDBBase
-from utils import download_file, get_logger
 
 logger = get_logger(__name__)
 
@@ -22,8 +22,6 @@ class Index(DuckDBBase):
             "index_name": "varchar",
             "name": "varchar",
             "symbol": "varchar",
-            "code": "varchar",
-            "exchange": "varchar",
         }
         self.create_table(self.table_name, columns)
 
@@ -69,105 +67,21 @@ class CSI(Index):
             conditions = {"index_name": data["index_name"].iloc[0]}
             self.delete(self.table_name, conditions)
 
+            column_order = ["index_name", "name", "symbol"]
+            data = data[column_order].copy()
             # 插入 DataFrame 数据
             inserted_rows = self.insert_dataframe(self.table_name, data)
+
+            filename = os.path.basename(xls_file)
             logger.info(
-                f"从 {xls_file} 导入 {inserted_rows} 条数据到 {self.table_name} 表"
+                f"从 {filename} 导入 {inserted_rows} 条数据到 {self.table_name} 表"
             )
         except Exception as e:
             logger.error(f"导入 {xls_file} 失败: {e}")
-            raise
-
-
-class GGT(Index):
-    def query(self) -> pd.DataFrame:
-        """查询 index_table 表，返回 DataFrame"""
-        conditions = {"index_name": "GGT"}
-        return self.select(table_name=self.table_name, conditions=conditions)
-
-    def store_ggt_xls(self, xls_file: str):
-        """解析 Excel 文件并导入数据到 ggt 表"""
-        xls_column_mapping = {
-            "证券代码": "code",
-            "英文简称": "en_name",
-            "中文简称(参考)": "name",
-            "品种": "type",
-        }
-
-        try:
-            # 读取 Excel 文件
-            df = pd.read_excel(xls_file, dtype=str)
-            # 保留需要的列
-            columns_to_keep = list(xls_column_mapping.keys())
-            data = df[columns_to_keep].copy()
-
-            # 重命名列
-            data.rename(columns=xls_column_mapping, inplace=True)
-            # 过滤股票类型
-            data = data[data["type"] == "股票"]
-
-            data["index_name"] = "GGT"
-            # 生成 symbol 列（code.exchange）
-            data["symbol"] = data["code"] + ".HK"
-            data["exchange"] = "HK"
-
-            # 删除 type 列
-            data.drop(columns=["type", "en_name"], inplace=True)
-
-            # 避免重复数据
-            conditions = {"index_name": "GGT"}
-            self.delete(self.table_name, conditions)
-
-            # 插入 DataFrame 数据
-            inserted_rows = self.insert_dataframe(self.table_name, data)
-            logger.info(
-                f"从 {xls_file} 导入 {inserted_rows} 条数据到 {self.table_name} 表"
-            )
-        except Exception as e:
-            logger.error(f"导入 {xls_file} 失败: {e}")
-            raise
-
-
-class SP500(Index):
-    def query(self) -> pd.DataFrame:
-        """查询 index_table 表，返回 DataFrame"""
-        conditions = {"index_name": "SP500"}
-        return self.select(table_name=self.table_name, conditions=conditions)
-
-    def store_sp500_csv(self, csv_file: str):
-        """解析 CSV 文件并导入数据到 sp500 表"""
-        xls_column_mapping = {
-            "Symbol": "code",
-            "Security": "name",
-        }
-        try:
-            # 读取 CSV 文件
-            data = pd.read_csv(csv_file, dtype=str, usecols=["Symbol", "Security"])
-
-            data.rename(columns=xls_column_mapping, inplace=True)
-            # 去除 index_name 中的空格
-            data["index_name"] = "SP500"
-            # 生成 symbol 列（code.exchange）
-            data["symbol"] = data["code"] + ".US"
-            data["exchange"] = "US"
-
-            # 避免重复数据
-            conditions = {"index_name": "SP500"}
-            self.delete(self.table_name, conditions)
-
-            # 插入 DataFrame 数据
-            inserted_rows = self.insert_dataframe(self.table_name, data)
-            logger.info(
-                f"从 {csv_file} 导入 {inserted_rows} 条数据到 {self.table_name} 表"
-            )
-        except Exception as e:
-            logger.error(f"导入 {csv_file} 失败: {e}")
             raise
 
 
 csi = CSI()
-ggt = GGT()
-sp500 = SP500()
 
 
 def update_index():
@@ -181,47 +95,37 @@ def update_index():
             {
                 "name": "ChinaA",
                 "url": "https://oss-ch.csindex.com.cn/static/html/csindex/public/uploads/file/autofile/cons/930903cons.xls",
-                "output_file": "cn.xls",
+                "output_file": "930903cons.xls",
                 "processor": csi.store_csi_xls,
                 "headers": None,
             },
             {
                 "name": "沪深300",
                 "url": "https://oss-ch.csindex.com.cn/static/html/csindex/public/uploads/file/autofile/cons/000300cons.xls",
-                "output_file": "cn300.xls",
+                "output_file": "000300cons.xls",
                 "processor": csi.store_csi_xls,
                 "headers": None,
             },
             {
                 "name": "中证500",
                 "url": "https://oss-ch.csindex.com.cn/static/html/csindex/public/uploads/file/autofile/cons/000905cons.xls",
-                "output_file": "cn500.xls",
+                "output_file": "000905cons.xls",
                 "processor": csi.store_csi_xls,
                 "headers": None,
             },
             {
                 "name": "中证1000",
                 "url": "https://oss-ch.csindex.com.cn/static/html/csindex/public/uploads/file/autofile/cons/000852cons.xls",
-                "output_file": "cn1000.xls",
+                "output_file": "000852cons.xls",
                 "processor": csi.store_csi_xls,
                 "headers": None,
             },
             {
-                "name": "标普500",
-                "url": "https://raw.githubusercontent.com/datasets/s-and-p-500-companies/refs/heads/main/data/constituents.csv",
-                "output_file": "sp500.csv",
-                "processor": sp500.store_sp500_csv,
+                "name": "中证2000",
+                "url": "https://oss-ch.csindex.com.cn/static/html/csindex/public/uploads/file/autofile/cons/932000cons.xls",
+                "output_file": "932000cons.xls",
+                "processor": csi.store_csi_xls,
                 "headers": None,
-            },
-            {
-                "name": "港股通",
-                "url": "https://query.sse.com.cn/commonExcelDd.do?sqlId=COMMON_SSE_JYFW_HGT_XXPL_BDZQQD_L&keyword=",
-                "output_file": "ggt.xls",
-                "headers": {
-                    "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
-                    "Referer": "https://www.sse.com.cn/services/hkexsc/disclo/eligible/",
-                },
-                "processor": ggt.store_ggt_xls,
             },
         ]
 

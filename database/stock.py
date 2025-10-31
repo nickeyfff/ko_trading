@@ -1,26 +1,47 @@
 from datetime import datetime
+from typing import Optional
 
+import pandas as pd
 from dateutil.relativedelta import relativedelta
 
+from common import generate_symbol
 from database.base import DuckDBBase
 
 
 class Stock(DuckDBBase):
     def __init__(self):
         super().__init__()
-        self.table_name = "v_qfq_stocks"
+        self.qfq_table_name = "v_qfq_stocks"
+        self.xdxr_table_name = "v_xdxr"
 
-    def query(self, symbol):
+    def query(
+        self,
+        symbol: str,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+    ) -> pd.DataFrame:
+        # 1. 构建WHERE子句的各个条件
+        conditions = []
+        if start_date:
+            conditions.append(f" AND date >= '{start_date}'")
+
+        if end_date:
+            conditions.append(f" AND date <= '{end_date}'")
+
+        # 2. 组合成最终的WHERE子句
+        where_clause = f"WHERE symbol='{symbol}'"
+        if conditions:
+            where_clause += f"{' '.join(conditions)}"
+
+        # 3. 构建完整的SQL查询
         query = f"""
-        SELECT *
-        FROM {self.table_name}
-        WHERE symbol = ?
+            SELECT *
+            FROM {self.qfq_table_name}
+            {where_clause}
+            ORDER BY date;
         """
-        params = [symbol]
 
-        with self.conn.cursor() as cursor:
-            df = cursor.execute(query, params).fetch_df()
-        return df
+        return self.query_df(query)
 
     def list_new_stocks(self, years_ago=2):
         """
@@ -33,7 +54,7 @@ class Stock(DuckDBBase):
             SELECT
                 symbol,
                 MIN(date) AS first_date
-            FROM {self.table_name}
+            FROM {self.qfq_table_name}
             GROUP BY symbol
         )
         SELECT
@@ -43,10 +64,15 @@ class Stock(DuckDBBase):
         WHERE first_date >= '{d}'
         ORDER BY first_date DESC
         """
+        return self.query_df(sql=query)
 
-        with self.conn.cursor() as cursor:
-            df = cursor.execute(query).fetch_df()
-        return df
+    def list_stocks_with_xdxr(self, start_date):
+        end_date = self.get_latest_date()
+        query = f"select distinct code from '{self.xdxr_table_name}' where date>='{start_date}' and date<='{end_date}';"
+        df = self.query_df(query)
+        df["symbol"] = df["code"].apply(generate_symbol)
+        symbols = [s for s in df["symbol"]]
+        return symbols
 
 
 stock = Stock()

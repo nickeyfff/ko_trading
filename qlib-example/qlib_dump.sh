@@ -2,11 +2,9 @@
 
 # 配置路径
 TDX_EXPORT=${TDX_EXPORT:-"/tmp/aabb"}
-QLIB_PROVIDER_URI=${QLIB_PROVIDER_URI:-"$HOME/Documents/qlib"}
-
 DATA_CSV_PATH="$TDX_EXPORT/data"
 FACTOR_CSV_PATH="$TDX_EXPORT/factor"
-QLIB_HOME=${QLIB_PROVIDER_URI}
+QLIB_HOME=${QLIB_HOME:-"$HOME/Documents/qlib"}
 
 # 参数检查
 if [ $# -lt 1 ]; then

@@ -1,11 +1,10 @@
 import os
 import tempfile
-from re import I
 
 import pandas as pd
 
+from common import download_file, generate_symbol, get_logger
 from database.base import DuckDBBase
-from utils import download_file, get_logger
 
 logger = get_logger(__name__)
 
@@ -40,16 +39,6 @@ class ShenWan(DuckDBBase):
             "更新日期": "update_date",
         }
 
-        def generate_symbol(code):
-            if code.startswith(("0", "3")):
-                return "sz" + code
-            elif code.startswith("6"):
-                return "sh" + code
-            elif code.startswith(("8", "4", "9")):
-                return "bj" + code
-            else:
-                return code
-
         try:
             # 读取 Excel 文件
             df = pd.read_excel(xls_file, dtype=str)
@@ -59,20 +48,22 @@ class ShenWan(DuckDBBase):
             sw_df = pd.DataFrame(shenwan_class_code)
 
             df = df.loc[df.groupby(["code"])["date"].idxmax()]
+            df["symbol"] = df["code"].apply(generate_symbol)
+            df.drop(columns=["code"], inplace=True)
             data = pd.merge(
-                df[["code", "class_code"]],
+                df[["symbol", "class_code"]],
                 sw_df[["class_code", "l1_class", "l2_class", "l3_class"]],
                 left_on="class_code",
                 right_on="class_code",
                 how="left",
             )
             data.dropna(inplace=True)
-            data["symbol"] = data["code"].apply(generate_symbol)
-            data.drop(columns=["code"], inplace=True)
             self.truncate_table(self.table_name)
             inserted_rows = self.insert_dataframe(self.table_name, data)
+
+            filename = os.path.basename(xls_file)
             logger.info(
-                f"从 {xls_file} 导入 {inserted_rows} 条数据到 {self.table_name} 表"
+                f"从 {filename} 导入 {inserted_rows} 条数据到 {self.table_name} 表"
             )
         except Exception as e:
             logger.error(f"导入 {xls_file} 失败: {e}")
