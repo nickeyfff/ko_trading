@@ -8,3 +8,6 @@ pandas
 requests
 xlrd
 pyqlib
+tqdm
+streamlit
+streamlit-aggrid

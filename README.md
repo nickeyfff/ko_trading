@@ -14,15 +14,17 @@
 
 - Python 3.12 （Qlib 最高支持 3.12）
 - uv，脚本和文档里都用的它
-- 使用 `tdx2db` 转换生成的 DuckDB 数据库
+- ta-lib，要先安装它，参考[官网](https://ta-lib.org/install/)
+- `tdx2db` 转换生成的 DuckDB 数据库
 - 安装 `req.txt` 中列出的依赖项：
+
   ```bash
   uv pip install -r req.txt
   ```
 
 ### 使用方法
 
-在 vscode 下开发，依赖 python 和 jupyter 插件，使用 vscode 调试跑起来的坑可能不多~
+在 Linux 的 vscode 下开发，依赖 python 和 jupyter 插件，使用 vscode 调试跑起来的坑可能不多~
 
 1. **设置数据库**：确保 `tdx2db` 转换生成的 DuckDB 数据库可用
 2. **配置环境变量**：修改`.env` 中的 DBPATH 变量，请自行确认编辑器会正确读取 `.env` ，也可以使用全局变量

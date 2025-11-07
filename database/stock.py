@@ -68,7 +68,7 @@ class Stock(DuckDBBase):
 
     def get_available_dates(self):
         """获取交易日"""
-        sql = f"SELECT DISTINCT date FROM {self.table_name} ORDER BY date DESC"
+        sql = f"SELECT DISTINCT date FROM {self.qfq_table_name} ORDER BY date DESC"
         df = self.query_df(sql)
         return pd.to_datetime(df["date"]).dt.date.tolist()
 
