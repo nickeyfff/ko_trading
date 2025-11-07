@@ -1,37 +1,12 @@
-# Quant Base
+# KO Trading
 
-此仓库提供基础的 Python 代码，用于使用 [tdx2db](https://github.com/jing2uo/tdx2db) 处理后 DuckDB 中的数据，可以：
+提供基础的 Python 代码，用于使用 [tdx2db](https://github.com/jing2uo/tdx2db) 处理后 DuckDB 中的数据，可以：
 
-- 查询股票数据
+- 查询股票前复权、换手率和日线数据
 - 更新和查询申万行业分类信息
 - 更新和查询指数成分股数据
+- 批量计算技术指标并导入 Duckdb
 - 体验 Qlib 量化平台功能
-
-## 项目结构
-
-```
-├── database
-│   ├── base.py         # 数据库核心操作
-│   ├── index.py        # 指数成分股数据处理
-│   ├── shenwan.py      # 申万行业分类数据
-│   └── stock.py        # 读取 tdx2db 保存的股票数据
-├── example.ipynb        # 使用示例笔记本
-├── export_for_qlib      # 从 duckdb 中导出 qlib 需要的 csv
-├── qlib_dump.sh         # 处理上面导出的 csv 到 qlib bin
-├── qlib_predict.py      # qlib 预测明天的股票情况，仅供参考流程
-├── qlib_test.py         # qlib 回测，仅供验证安装
-├── README.md
-├── req.txt              # 依赖项
-├── scripts              # 从 qlib 拿的脚本
-│   ├── check_data_health.py
-│   ├── check_dump_bin.py
-│   ├── collect_info.py
-│   ├── dump_bin.py     # 主要用这个处理 csv 转换
-│   └── dump_pit.py
-└── utils
-    ├── download.py     # 文件下载工具
-    └── log.py          # 日志记录工具
-```
 
 ## 开始使用
 
@@ -56,22 +31,13 @@
 ### Qlib 体验
 
 1.  使用 tdx2db 处理好日线数据和复权因子
-2.  使用 export_for_qlib 导出 csv 
+2.  使用 export_for_qlib 导出 csv
 3.  配置 qlib_dump.sh 中的变量
-   1. TDX_EXPORT 表示 export_for_qlib 的 output 目录
-   2. QLIB_PROVIDER_URI 表示 qlib 数据目录
-4. 执行 qlib_dump.sh init 初始化
-5.  uv run qlib_test.py 就能看到加载数据、训练和回测过程
+4.  TDX_EXPORT 表示 export_for_qlib 的 output 目录
+5.  QLIB_PROVIDER_URI 表示 qlib 数据目录
+6.  执行 qlib_dump.sh init 初始化
+7.  uv run qlib_test.py 就能看到加载数据、训练和回测过程
 
 输出丢给 ai 让它解释，然后慢慢研究吧。
 
-可以参考 docs 下华泰的文档，也可以看官方文档：https://qlib.readthedocs.io/en/latest/introduction/introduction.html
-
-
-
-### 项目扩展
-
-您可以基于本仓库添加自定义模块，例如：
-
-- 基于技术指标的选股逻辑。
-- 使用复权数据执行策略回测。
+可以参考 docs 下华泰的文档(过时严重但有个完整流程可以对照)，还有 [Qlib 官方文档](https://qlib.readthedocs.io/en/latest/introduction/introduction.html)。
