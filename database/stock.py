@@ -11,6 +11,7 @@ from database.base import DuckDBBase
 class Stock(DuckDBBase):
     def __init__(self):
         super().__init__()
+        self.table_name = "raw_stocks_daily"
         self.qfq_table_name = "v_qfq_stocks"
         self.xdxr_table_name = "v_xdxr"
 
@@ -65,6 +66,12 @@ class Stock(DuckDBBase):
         ORDER BY first_date DESC
         """
         return self.query_df(sql=query)
+
+    def get_available_dates(self):
+        """获取交易日"""
+        sql = f"SELECT DISTINCT date FROM {self.qfq_table_name} ORDER BY date DESC"
+        df = self.query_df(sql)
+        return pd.to_datetime(df["date"]).dt.date.tolist()
 
     def list_stocks_with_xdxr(self, start_date):
         end_date = self.get_latest_date()

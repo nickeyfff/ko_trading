@@ -7,7 +7,3 @@ __pycache__/
 
 # proj
 strategy/
-utils/plot.py
-backtest.ipynb
-scan.ipynb
-requirements.txt

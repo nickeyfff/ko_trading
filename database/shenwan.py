@@ -3,10 +3,8 @@ import tempfile
 
 import pandas as pd
 
-from common import download_file, generate_symbol, get_logger
+from common import download_file, generate_symbol
 from database.base import DuckDBBase
-
-logger = get_logger(__name__)
 
 
 # 基于 DuckDBBase 的 SW类
@@ -59,46 +57,36 @@ class ShenWan(DuckDBBase):
             )
             data.dropna(inplace=True)
             self.truncate_table(self.table_name)
-            inserted_rows = self.insert_dataframe(self.table_name, data)
+            self.insert_dataframe(self.table_name, data)
 
-            filename = os.path.basename(xls_file)
-            logger.info(
-                f"从 {filename} 导入 {inserted_rows} 条数据到 {self.table_name} 表"
-            )
         except Exception as e:
-            logger.error(f"导入 {xls_file} 失败: {e}")
-            raise
+            raise e
 
 
 shenwan = ShenWan()
 
 
-def update_shenwan():
+def run_shenwan_industry_update():
+    print(f"\n{'=' * 50}\n开始更新申万行业信息")
     with tempfile.TemporaryDirectory() as temp_dir:
         os.makedirs(temp_dir, exist_ok=True)
+        url = "https://www.swsresearch.com/swindex/pdf/SwClass2021/StockClassifyUse_stock.xls"
+        file_name = "sw_stock_class.xls"
+        headers = {
+            "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+            "Content-Type": "application/json",
+        }
 
-        sw_info = [
-            {
-                "name": "申万行业",
-                "url": "https://www.swsresearch.com/swindex/pdf/SwClass2021/StockClassifyUse_stock.xls",
-                "output_file": "sw_stock_class.xls",
-                "headers": {
-                    "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
-                    "Content-Type": "application/json",
-                },
-                "processor": shenwan.store_stock_class,
-            },
-        ]
+        output_path = os.path.join(temp_dir, file_name)
+        if download_file(url, output_path, headers=headers):
+            try:
+                shenwan.store_stock_class(xls_file=output_path)
+            except Exception as e:
+                raise e
+        else:
+            print(f"❌ 文件下载失败：{file_name}")
 
-        for config in sw_info:
-            output_path = os.path.join(temp_dir, config["output_file"])
-            if download_file(config["url"], output_path, headers=config["headers"]):
-                try:
-                    config["processor"](output_path)
-                except Exception as e:
-                    print(f"Error processing {config['name']}: {e}")
-            else:
-                print(f"Failed to download {config['name']}")
+    print(f"🎉 申万行业信息更新完成\n{'=' * 50}\n")
 
 
 shenwan_class_code = [
@@ -3114,7 +3102,3 @@ shenwan_class_code = [
         "l3_class": "医美服务",
     },
 ]
-
-
-if __name__ == "__main__":
-    update_shenwan()

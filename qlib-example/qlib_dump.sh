@@ -31,12 +31,12 @@ run_dump() {
 case "$MODE" in
     init)
         # 初始化
-        run_dump dump_all "$DATA_CSV_PATH" "open,close,high,low,volume,amount"
+        run_dump dump_all "$DATA_CSV_PATH" "open,close,high,low,volume,amount,turnover"
         run_dump dump_all "$FACTOR_CSV_PATH" "factor"
         ;;
     update)
         # 更新
-        run_dump dump_update "$DATA_CSV_PATH" "open,close,high,low,volume,amount"
+        run_dump dump_update "$DATA_CSV_PATH" "open,close,high,low,volume,amount,turnover"
         run_dump dump_all "$FACTOR_CSV_PATH" "factor"
         ;;
     *)
