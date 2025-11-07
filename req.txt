@@ -1,4 +1,6 @@
 duckdb
+vectorbt
+ta-lib
 ipykernel
 colorama
 numpy
