@@ -66,6 +66,12 @@ class Stock(DuckDBBase):
         """
         return self.query_df(sql=query)
 
+    def get_available_dates(self):
+        """获取交易日"""
+        sql = f"SELECT DISTINCT date FROM {self.table_name} ORDER BY date DESC"
+        df = self.query_df(sql)
+        return pd.to_datetime(df["date"]).dt.date.tolist()
+
     def list_stocks_with_xdxr(self, start_date):
         end_date = self.get_latest_date()
         query = f"select distinct code from '{self.xdxr_table_name}' where date>='{start_date}' and date<='{end_date}';"

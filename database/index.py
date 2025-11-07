@@ -3,10 +3,8 @@ import tempfile
 
 import pandas as pd
 
-from common import download_file, get_logger
+from common import download_file
 from database.base import DuckDBBase
-
-logger = get_logger(__name__)
 
 
 # 基于 DuckDBBase 的 IndexTable 类
@@ -26,13 +24,16 @@ class Index(DuckDBBase):
         self.create_table(self.table_name, columns)
 
 
-class CSI(Index):
-    def query(self, csi_name) -> pd.DataFrame:
+class CSIndex(Index):
+    def query(self, csi_name=None) -> pd.DataFrame:
         """查询 index_table 表，返回 DataFrame"""
-        conditions = {"index_name": csi_name}
-        return self.select(table_name=self.table_name, conditions=conditions)
+        sql = f"SELECT * FROM {self.table_name}"
+        if csi_name:
+            sql += f" WHERE index_name = '{csi_name}'"
 
-    def store_csi_xls(self, xls_file: str):
+        return self.query_df(sql)
+
+    def store_xls(self, xls_file: str):
         """解析 Excel 文件并导入数据到 csi 表"""
         # Excel 列名到数据库列名的映射
         xls_column_mapping = {
@@ -70,76 +71,47 @@ class CSI(Index):
             column_order = ["index_name", "name", "symbol"]
             data = data[column_order].copy()
             # 插入 DataFrame 数据
-            inserted_rows = self.insert_dataframe(self.table_name, data)
-
-            filename = os.path.basename(xls_file)
-            logger.info(
-                f"从 {filename} 导入 {inserted_rows} 条数据到 {self.table_name} 表"
-            )
+            self.insert_dataframe(self.table_name, data)
         except Exception as e:
-            logger.error(f"导入 {xls_file} 失败: {e}")
-            raise
+            raise e
 
 
-csi = CSI()
+csindex = CSIndex()
 
 
-def update_index():
-    """Update CSI, SP500, and GGT IndexTable by downloading and processing index files."""
+def import_csindex(index_file_name: str, temp_dir: str) -> str:
+    """
+    下载并处理单个中证指数文件。
+    """
+    csindex_url = "https://oss-ch.csindex.com.cn/static/html/csindex/public/uploads/file/autofile/cons/"
+    url = csindex_url + index_file_name
+    output_path = os.path.join(temp_dir, index_file_name)
+
+    if not download_file(url, output_path):
+        raise Exception(f"下载 {index_file_name} 失败")
+
+    try:
+        csindex.store_xls(output_path)
+    except Exception as e:
+        raise Exception(f"处理文件时出错: {e}") from e
+
+    return index_file_name
+
+
+def run_csindex_update():
+    print(f"\n{'=' * 50}\n开始更新指数成分信息")
+
+    index_list = [
+        {"name": "全部A股", "file": "930903cons.xls"},
+        {"name": "沪深300", "file": "000300cons.xls"},
+        {"name": "中证500", "file": "000905cons.xls"},
+        {"name": "中证1000", "file": "000852cons.xls"},
+        {"name": "中证2000", "file": "932000cons.xls"},
+    ]
 
     with tempfile.TemporaryDirectory() as temp_dir:
-        os.makedirs(temp_dir, exist_ok=True)
+        for index in index_list:
+            r = import_csindex(index_file_name=index["file"], temp_dir=temp_dir)
+            print(f"✅ {index['name'] + ':'} {r} 处理成功")
 
-        # Unified configuration for all index files
-        index_configs = [
-            {
-                "name": "ChinaA",
-                "url": "https://oss-ch.csindex.com.cn/static/html/csindex/public/uploads/file/autofile/cons/930903cons.xls",
-                "output_file": "930903cons.xls",
-                "processor": csi.store_csi_xls,
-                "headers": None,
-            },
-            {
-                "name": "沪深300",
-                "url": "https://oss-ch.csindex.com.cn/static/html/csindex/public/uploads/file/autofile/cons/000300cons.xls",
-                "output_file": "000300cons.xls",
-                "processor": csi.store_csi_xls,
-                "headers": None,
-            },
-            {
-                "name": "中证500",
-                "url": "https://oss-ch.csindex.com.cn/static/html/csindex/public/uploads/file/autofile/cons/000905cons.xls",
-                "output_file": "000905cons.xls",
-                "processor": csi.store_csi_xls,
-                "headers": None,
-            },
-            {
-                "name": "中证1000",
-                "url": "https://oss-ch.csindex.com.cn/static/html/csindex/public/uploads/file/autofile/cons/000852cons.xls",
-                "output_file": "000852cons.xls",
-                "processor": csi.store_csi_xls,
-                "headers": None,
-            },
-            {
-                "name": "中证2000",
-                "url": "https://oss-ch.csindex.com.cn/static/html/csindex/public/uploads/file/autofile/cons/932000cons.xls",
-                "output_file": "932000cons.xls",
-                "processor": csi.store_csi_xls,
-                "headers": None,
-            },
-        ]
-
-        # Download and process index file sequentially
-        for config in index_configs:
-            output_path = os.path.join(temp_dir, config["output_file"])
-            if download_file(config["url"], output_path, headers=config["headers"]):
-                try:
-                    config["processor"](output_path)
-                except Exception as e:
-                    print(f"Error processing {config['name']}: {e}")
-            else:
-                print(f"Failed to download {config['name']}")
-
-
-if __name__ == "__main__":
-    update_index()
+    print(f"🎉 指数成分更新完成\n{'=' * 50}\n")
