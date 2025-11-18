@@ -13,5 +13,6 @@ if __name__ == "__main__":
 
     symbols = [s for s in csindex.query("ChinaA")["symbol"]]
     run_indicator_calculate(symbols=symbols)
+    # run_reversal_analysis(symbols=symbols)
     end = time.time()
     print("执行时间: {:.6f} 秒".format(end - start))
